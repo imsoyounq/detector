@@ -3,6 +3,7 @@ from flask import Flask, render_template, redirect, url_for, flash, session, req
 import RPi.GPIO as GPIO
 import time
 from multiprocessing import Process
+import signal, sys
 
 app = Flask(__name__)
 detector_on = False
@@ -26,9 +27,6 @@ def detect_off():
     detector_on = False
     return redirect(url_for('undetecting'))
 
-def rndmplay():
-    randomfile = random.choice(os.listdir("/home/pi/wakeup/"))
-    os.system('omxplayer /home/pi/wakeup/' + randomfile)
 
 @app.route("/shutdown")
 def shutdown():
@@ -44,14 +42,26 @@ def help():
 def error():
     return redirect(url_for('help')) 
 
+def rndmplay():
+    global playing
+    if not playing:
+        randomfile = random.choice(os.listdir("/home/pi/wakeup/"))
+        os.system('omxplayer /home/pi/wakeup/' + randomfile)
+        playing = True
+
 
 def motion_detect():
-
-    rndmplay()
+    while True:
+        if GPIO.input(motion_pin):
+            print 'detected'
+            rndmplay()
+        else:
+            print 'not detected'
+        time.sleep(0.5)
 
 
 def touch(): 
-    global mdp, touch_pin, motion_on, pressed, alreadyPressed
+    global mdp, touch_pin, motion_on, pressed, alreadyPressed, playing
 
     while True:
         pressed = GPIO.input(touch_pin)
@@ -62,6 +72,7 @@ def touch():
                 if mdp is not None:
                     mdp.terminate()
                     mdp = None
+                    playing = False
             else:
                 motion_on = True
                 mdp = Process(target=motion_detect)
@@ -71,12 +82,26 @@ def touch():
         time.sleep(0.1)
 
 
+def int_handler(signal, frame):
+    global mdp, p
+    print ('interrupted by user')
+    if mdp is not None:
+        mdp.terminate()
+        
+    if p is not None:
+        p.terminate()
+        
+    sys.exit(0)
+
 mdp = None
 motion_on = False
 touch_pin = 3
 motion_pin = 4
 pressed = False
 alreadyPressed = False
+playing = False
+p = None
+
 
 if __name__ == "__main__":
     GPIO.setmode(GPIO.BCM)
@@ -84,5 +109,7 @@ if __name__ == "__main__":
     GPIO.setup(motion_pin, GPIO.IN)
     p = Process(target=touch)
     p.start()
+
+    signal.signal(signal.SIGINT, int_handler)
 
     app.run(host = '0.0.0.0', port=5000)
