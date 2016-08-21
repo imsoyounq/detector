@@ -61,20 +61,21 @@ def motion_detect():
 
 
 def touch(): 
-    global mdp, touch_pin, motion_on, pressed, alreadyPressed, playing
+    global mdp, touch_pin, detector_on, pressed, alreadyPressed, playing
 
     while True:
         pressed = GPIO.input(touch_pin)
         if pressed and not alreadyPressed:
             print 'pressed'
-            if motion_on:
-                motion_on = False
+            if detector_on:
+                detector_on = False
                 if mdp is not None:
                     mdp.terminate()
+                    subprocess.Popen(shlex.split('pkill omxplayer'))
                     mdp = None
                     playing = False
             else:
-                motion_on = True
+                detector_on = True
                 mdp = Process(target=motion_detect)
                 mdp.start()
 
@@ -94,7 +95,6 @@ def int_handler(signal, frame):
     sys.exit(0)
 
 mdp = None
-motion_on = False
 touch_pin = 3
 motion_pin = 4
 pressed = False

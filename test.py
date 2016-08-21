@@ -1,16 +1,21 @@
 import RPi.GPIO as GPIO
 import time
+import random
 
 pin = 4
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 GPIO.setup(pin, GPIO.IN)
+state = False
 while True:
-    if GPIO.input(pin):
-        print 'detected'
-    else:
-        print 'not detected'
-    time.sleep(0.5)
+    new_state = GPIO.input(pin)
+    if new_state != state:
+        if new_state:
+            print 'detected'
+        else:
+            print 'not detected'
+        state = new_state
+        print str(time.time())
 
 '''
 from gpiozero import MotionSensor
